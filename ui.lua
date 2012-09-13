@@ -1,7 +1,7 @@
 module(..., package.seeall)
 
 local buttonList = {}
-local active = {total = 0, playerColor=0, up = false, left = false, right = false, action1 = false, action2 = false, slider = false}
+local active = {total = 0, playerColor=0, jumpTap = false, up = false, left = false, right = false, action1 = false, action2 = false, slider = false}
 local touches = {}
 local colorSlider = display.newGroup( )
 local colorList = {}
@@ -256,7 +256,9 @@ local function onTouchFunc(event)
        myNum = #touches
        display.getCurrentStage():setFocus(event.target)
         if targetButton == "slider" then
-            
+           
+       elseif targetButton == "up" then
+           active.jumpTap = true
         end
     elseif event.phase == "moved" then
         if myNum == nil then

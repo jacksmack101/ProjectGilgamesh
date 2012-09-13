@@ -13,6 +13,10 @@ local mapTiles = {}
 local mapTilesBack = {}
 local mapTilesFor = {}
 
+local sheetData = require "tileSheet"
+local spriteData =sheetData.getSpriteSheetData()
+local spriteSheet = sprite.newSpriteSheetFromData( "tileSheet.png", spriteData )
+
 function buildMap(NAME)
     mapData = require(NAME)
 
@@ -45,16 +49,23 @@ function buildMap(NAME)
      	end
      end
         
-        local sheetData = require "tileSheet"
-        local spriteData =sheetData.getSpriteSheetData()
-        local spriteSheet = sprite.newSpriteSheetFromData( "tileSheet.png", spriteData )
         
+        for i=1,#rawObjects do
+            if rawObjects[i].name == "playerStart" then
+                mapInfo.playerStart = {x=rawObjects[i].x, y=rawObjects[i].y}
+            end
+    
+        end
         
         
             
         for i=1,#map do
             for j=1,#map[i] do 
-                if map[i][j] == 0 then
+                if map[i][j] == 0 
+                    or j < math.floor(mapInfo.playerStart.x/mapInfo.tilewidth) - 8 
+                    or  j > math.floor(mapInfo.playerStart.x/mapInfo.tilewidth) + 10 
+                    or i < math.floor(mapInfo.playerStart.y/mapInfo.tilewidth) - 8 
+                    or  i > math.floor(mapInfo.playerStart.y/mapInfo.tilewidth) + 8  then
                    
                     table.insert(mapTiles[i], "none") 
                     
@@ -108,14 +119,123 @@ function buildMap(NAME)
     mapInfo.tiles = mapTiles
     mapInfo.objects = rawObjects
     
-    for i=1,#rawObjects do
-        if rawObjects[i].name == "playerStart" then
-             mapInfo.playerStart = {x=rawObjects[i].x, y=rawObjects[i].y}
-        end
     
-    end
 
     return mapInfo
     
+end
+
+function cleanUpTiles(HERO)
+    if HERO.xtile ~= math.floor(HERO.xpos / mapInfo.tilewidth)
+       or HERO.ytile ~= math.floor(HERO.ypos / mapInfo.tileheight)then
+       HERO.xtile = math.floor(HERO.xpos / mapInfo.tilewidth)
+       HERO.ytile = math.floor(HERO.ypos / mapInfo.tileheight)
+       local idown = HERO.ytile - 12
+       local iup = HERO.ytile + 12
+       local jdown = HERO.xtile - 12
+       local jup = HERO.xtile + 12
+       
+       if idown < 1 then
+           idown = 1
+       end
+       if jdown < 1 then
+           jdown = 1
+       end
+       if iup > #map then
+           iup = #map 
+       end
+       if jup > #map[1] then
+           jup = #map[1]
+       end
+       
+    for i=idown,iup do
+            for j=jdown,jup do 
+                if map[i][j] == 0 
+                    or j < math.floor(HERO.xpos/mapInfo.tilewidth) - 8 
+                    or  j > math.floor(HERO.xpos/mapInfo.tilewidth) + 9 
+                    or i < math.floor(HERO.ypos/mapInfo.tileheight) - 6 
+                    or  i > math.floor(HERO.ypos/mapInfo.tileheight) + 6  then
+                   
+                    if mapTiles[i][j] ~= "none" then
+                        local thisTile = mapTiles[i][j]
+                        mapTiles[i][j] = "none"
+                        thisTile:removeSelf( )
+                    end
+                    
+                    
+                else
+                    if mapTiles[i][j] == "none" then
+                        local spriteSet = sprite.newSpriteSet(spriteSheet, map[i][j], 1)
+                        local thisTile = sprite.newSprite(spriteSet)  
+                        thisTile:setReferencePoint( display.TopLeftReferencePoint )
+                        mapClip:insert(thisTile)
+                        thisTile.x = math.floor(mapData.tilewidth * (j-1))
+                        thisTile.y = math.floor(mapData.tileheight * (i -1))
+                        mapTiles[i][j] = thisTile
+                    end
+                
+                end
+            end
+        end
+        mapClip:insert(HERO.group)
+        end
     end
     
+
+
+function isWalkable(NUM)
+   local returnvar = false
+   local walkable = {0}
+   for i=1,#walkable do
+    if NUM == walkable[i] then
+        returnvar = true
+    end
+   end
+   
+    return returnvar
+end
+
+function isSlime(NUM)
+    local returnvar = false
+   local slime = {38}
+   for i=1,#slime do
+    if NUM == slime[i] then
+        returnvar = true
+    end
+   end
+   
+    return returnvar
+    
+    
+    
+end
+
+function isTreadLeft(NUM)
+    local returnvar = false
+   local slime = {38}
+   for i=1,#slime do
+    if NUM == slime[i] then
+        returnvar = true
+    end
+   end
+   
+    return returnvar
+    
+    
+    
+end
+
+function isTreadRight(NUM)
+    local returnvar = false
+   local slime = {38}
+   for i=1,#slime do
+    if NUM == slime[i] then
+        returnvar = true
+    end
+   end
+   
+    return returnvar
+    
+    
+    
+end
