@@ -1,7 +1,7 @@
 module(..., package.seeall)
 
 local buttonList = {}
-local active = {total = 0, playerColor=0, jumpTap = false, up = false, left = false, right = false, action1 = false, action2 = false, slider = false}
+local active = {total = 0, playerColor=0, jumpTap = false, action1Tap = false, up = false, left = false, right = false, action1 = false, action2 = false, slider = false}
 local touches = {}
 local colorSlider = display.newGroup( )
 local colorList = {}
@@ -259,7 +259,11 @@ local function onTouchFunc(event)
            
        elseif targetButton == "up" then
            active.jumpTap = true
-        end
+        
+       elseif targetButton == "action1" then
+           active.action1Tap = true
+           
+       end
     elseif event.phase == "moved" then
         if myNum == nil then
             table.insert ( touches, { event.id, targetButton, targetButton } )

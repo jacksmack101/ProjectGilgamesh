@@ -35,7 +35,12 @@ local isWalkable = mapFunc.isWalkable
 local isSlime = mapFunc.isSlime 
 local isTreadLeft = mapFunc.isTreadLeft
 local isTreadRight = mapFunc.isTreadRight 
-local pixelSize = 4
+local pixelSize = 2
+
+
+
+
+
 -- Called when the scene's view does not exist:
 function scene:createScene( event )
 	local group = self.view
@@ -94,9 +99,50 @@ end
 
 function setMapPosition()
     local mapOffset = 0
+    hero.group.x = (math.round(hero.xpos/pixelSize)*pixelSize) 
+    hero.group.y = (math.round(hero.ypos/pixelSize)*pixelSize)
     
-    mapVar.clipBack.x = display.contentCenterX - (math.round(hero.xpos/pixelSize)*pixelSize)
-    mapVar.clipBack.y = display.contentCenterY - (math.round(hero.ypos/pixelSize)*pixelSize) - mapOffset
+    if not game.paused then
+    
+        game.xpos = (math.round(hero.xpos/pixelSize)*pixelSize)
+        game.ypos = (math.round(hero.ypos/pixelSize)*pixelSize)
+    else
+        
+        if hero.porting then
+            local donex = false
+            local doney = false
+            if math.abs(game.xtarg - game.xpos) > 1 then
+                local xdist= game.xpos - game.xtarg
+                game.xpos = game.xpos - (xdist/4)
+            else
+                donex = true
+                game.xpos = (math.round(hero.xpos/pixelSize)*pixelSize)
+            end
+            if math.abs(game.ypos - game.ytarg) > .5 then
+                local ydist= game.ypos - game.ytarg 
+                game.ypos = game.ypos - (ydist/4)
+                --game.ypos = (math.floor(game.ypos/pixelSize)*pixelSize)
+                
+                
+                
+            else
+                doney = true
+                game.ypos = (math.round(hero.ypos/pixelSize)*pixelSize)
+            end
+            if donex and doney then
+                hero.porting = false
+                game.paused = false
+            end
+            
+               
+        end
+
+        
+    end
+    
+    
+    mapVar.clipBack.x = display.contentCenterX - game.xpos
+    mapVar.clipBack.y = display.contentCenterY - game.ypos
     
     mapVar.clip.x = mapVar.clipBack.x
     mapVar.clip.y = mapVar.clipBack.y
@@ -104,9 +150,8 @@ function setMapPosition()
     mapVar.clipFor.x = mapVar.clipBack.x
     mapVar.clipFor.y = mapVar.clipBack.y
     
-    
-    hero.group.x = (math.round(hero.xpos/pixelSize)*pixelSize) 
-    hero.group.y = (math.round(hero.ypos/pixelSize)*pixelSize)
+    mapFunc.cleanUpTiles(hero, game)
+    mapFunc.moveBullets(mapVar,game)
 end
 
 
@@ -195,6 +240,21 @@ local function enterFrameFunc(event)
         end
         if active.action1 then
             uiDots[4].alpha = 1
+            if active.playerColor == 1 then
+                if active.action1Tap then
+                    heroFunc.shootFire(hero,mapVar)
+                    
+                    active.action1Tap = false
+                end
+            end
+            
+            if active.playerColor == 3 then
+                if active.action1Tap and not (hero.jumping or hero.falling or hero.ontreadmill) then
+                    heroFunc.dropPortal(hero,mapVar,game)
+                    active.action1Tap = false
+                end
+            end
+        
         else
             uiDots[4].alpha = .25
         end
@@ -211,16 +271,23 @@ local function enterFrameFunc(event)
         
        
         moveHero() 
+       -- mapFunc.setSlopePlacement(hero)
         setMapPosition()
         
-        mapFunc.cleanUpTiles(hero)
-    end -- end game paused
+        
+    else -- end game paused
+    setMapPosition()    
+    end
+    
+        
 end
 
 
 
 
 function moveHero(XDIR, YDIR)
+
+    
   heroFunc.checkCorners(hero,mapVar)
   
     -- TL  TR  BL  BR  TC  BC  UBC
@@ -232,7 +299,7 @@ function moveHero(XDIR, YDIR)
         end
     end
     
-    if isWalkable(hero.UBC) then
+    if isWalkable(hero.UBC)  then
       if not hero.falling and not hero.jumping then
           hero.quickfall = true
       end
@@ -241,6 +308,7 @@ function moveHero(XDIR, YDIR)
     else 
       hero.falling = false
       hero.dblJumped = false
+      
     end
     
     if hero.falling then
@@ -266,40 +334,38 @@ function moveHero(XDIR, YDIR)
         hero.yspeed = hero.maxyspeed
     end
     heroFunc.checkCorners(hero,mapVar)
-    if isTreadRight(hero.UBC) then
-        hero.bonusspeed = hero.treadmillspeed
-    elseif isTreadLeft(hero.UBC) then
-        hero.bonusspeed = -hero.treadmillspeed
-    else
-        hero.bonusspeed = 0
-    end
+    
     
     
     if hero.walking then
+        
         if math.abs(hero.xspeed) < hero.maxxspeed then
-            
+            if isSlime(hero.UBC) then
                  hero.xspeed = hero.xspeed + (hero.slimeaccel * hero.dirx)
+                -- print('onslime')
              else
                  hero.xspeed = hero.xspeed + (hero.accel * hero.dirx)
+                 --print("offslime")
              end
              
              
         else
             hero.xspeed = hero.maxxspeed * hero.dirx
+            
         
-    
+     end
     end
-    hero.xspeed = hero.xspeed + hero.bonusspeed
+    
     
     if hero.walking then
         if hero.dirx == -1 and not(isWalkable(hero.TL) and isWalkable(hero.BL)) then
             hero.walking = false
-            if math.floor((hero.xpos + hero.xspeed)/mapVar.tilewidth) ~= math.floor((hero.xpos)/mapVar.tilewidth) then
-                hero.xpos = math.floor((hero.xpos + hero.xspeed)/mapVar.tilewidth)*mapVar.tilewidth
-            end
+            
+            hero.xspeed = 0
         end
         if hero.dirx == 1  and not(isWalkable(hero.TR) and isWalkable(hero.BR))  then
-            hero.walking = false
+            hero.walking = false 
+            hero.xspeed = 0
         end
     end
     
@@ -307,21 +373,80 @@ function moveHero(XDIR, YDIR)
     
     if not hero.walking then
         if isSlime(hero.UBC) then
+            
             hero.xspeed = hero.xspeed * hero.slimefriction
         else
-            hero.xspeed = hero.xspeed * hero.friction
+            if hero.falling or hero.jumping then
+                hero.xspeed = hero.xspeed * .001
+            else
+                 hero.xspeed = hero.xspeed * hero.friction
+             end
+             
         end
-        if math.abs(hero.xspeed) < .1 then
+        if math.abs(hero.xspeed) < .01 then
             hero.xspeed = 0
         end
         
+        
      
+ end 
+ local pushedR = false
+ local pushedL = false
+ local loopCount = 0
+        while not isWalkable(hero.TL) or not isWalkable(hero.BL) do
+            hero.xpos = hero.xpos + 1 
+            heroFunc.checkCorners(hero,mapVar)
+            pushedR = true
+            loopCount = loopCount + 1
+            if loopCount > 5 then
+                loopCount = 0
+                break
+            end
+            
+        end
+        while not isWalkable(hero.TR) or not isWalkable(hero.BR) do
+            hero.xpos = hero.xpos - 1 
+            heroFunc.checkCorners(hero,mapVar)
+            pushedL = true
+            loopCount = loopCount + 1
+            if loopCount > 5 then
+                loopCount = 0
+                break
+            end
+        end
+        if pushedR then hero.xpos = hero.xpos -1 end
+        if pushedL then hero.xpos = hero.xpos +1 end
+ 
+    if isTreadRight(hero.UBC) then
+        hero.bonusspeed = hero.treadmillspeed
+        hero.ontreadmill = true
+    elseif isTreadLeft(hero.UBC) then
+        hero.bonusspeed = -hero.treadmillspeed
+        hero.ontreadmill = true
+    else
+        hero.bonusspeed = 0
+        hero.ontreadmill = false
     end
     
-    
+    if not(isWalkable(hero.TL) or not isWalkable(hero.BL)) then
+        if hero.bonusspeed < 0 then
+        hero.bonusspeed = 0
+        end
+        if hero.xspeed < 0 then
+        hero.xspeed = 0
+        end
+    end
+    if not(isWalkable(hero.TR) or not isWalkable(hero.BR)) then
+        if hero.bonusspeed > 0 then
+        hero.bonusspeed = 0
+        end
+        if hero.xspeed > 0 then
+        hero.xspeed = 0
+        end
+    end
     
     hero.clip.xScale = -hero.dirx
-    hero.xpos = hero.xpos + hero.xspeed
+    hero.xpos = hero.xpos + hero.xspeed + hero.bonusspeed
     hero.ypos = hero.ypos + hero.yspeed
 end
 
