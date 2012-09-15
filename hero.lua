@@ -476,6 +476,8 @@ function dropBlock(OBJ,MAP)
                 thisIce.alive = true
                 thisIce.falling = false
                 thisIce.fallCount = 0
+                thisIce.ontile = "none"
+                thisIce.slide = false
                 
                 --table.insert(HERO.occupied, {xtile = ports[#ports].xtile,ytile = ports[#ports].ytile} )
                          

@@ -32,7 +32,7 @@ local playerColor = math.random(3)
 local uiDots = {}
 local mapFunc = require("mapFunc")
 local isWalkable = mapFunc.isWalkable 
-local isIceBlock = mapFunc.checkIceBlock
+local isIceBlock = mapFunc.isIceBlock
 local isSlime = mapFunc.isSlime 
 local isTreadLeft = mapFunc.isTreadLeft
 local isTreadRight = mapFunc.isTreadRight 
@@ -464,7 +464,11 @@ function moveHero(XDIR, YDIR)
         
     
     if not hero.walking then
+        
         if isSlime(hero.UBC) then
+            if hero.bonusspeed ~= 0 then
+               hero.xspeed = hero.xspeed + hero.bonusspeed
+            end
             
             hero.xspeed = hero.xspeed * hero.slimefriction
         else

@@ -307,7 +307,7 @@ function moveBullets(MAP,GAME,HERO)
 end
 
 
-function checkIceBlock(XPOS, YPOS ,HERO)
+function isIceBlock(XPOS, YPOS ,HERO)
 local block = false
             if HERO.iceBlock ~= nil then
                 if HERO.iceBlock.clip ~= nil then
@@ -332,6 +332,7 @@ function moveIceBlock(X,HERO,MAP)
     local thisIce = HERO.iceBlock
     local okMove = false
     local Y = 0
+    
     if X > 0 then
         if isWalkable(MAP.map[thisIce.tiles[2].ytile][thisIce.tiles[2].xtile + X+1])  then
             if isWalkable(MAP.map[thisIce.tiles[4].ytile][thisIce.tiles[4].xtile + X+1])  then
@@ -343,9 +344,58 @@ function moveIceBlock(X,HERO,MAP)
         if isWalkable(MAP.map[thisIce.tiles[1].ytile][thisIce.tiles[1].xtile + X+1])  then
             if isWalkable(MAP.map[thisIce.tiles[3].ytile][thisIce.tiles[3].xtile + X+1])  then
                okMove = true 
+               
             end
         end    
     end
+    if not okMove then
+        if isTreadLeft(MAP.map[thisIce.tiles[3].ytile+1][thisIce.tiles[3].xtile+1]) or
+             isTreadLeft(MAP.map[thisIce.tiles[4].ytile+1][thisIce.tiles[4].xtile+1])then
+            X = -1
+            thisIce.ontile = "leftTread"
+            okMove = true
+        end
+    end
+    if not okMove then
+        if isTreadRight(MAP.map[thisIce.tiles[3].ytile+1][thisIce.tiles[3].xtile+1]) or
+             isTreadRight(MAP.map[thisIce.tiles[4].ytile+1][thisIce.tiles[4].xtile+1])then
+            X = 1
+            thisIce.ontile = "rightTread"
+            okMove = true
+        end
+    end
+    
+    
+        if isSlime(MAP.map[thisIce.tiles[3].ytile+1][thisIce.tiles[3].xtile+1]) or
+             isSlime(MAP.map[thisIce.tiles[4].ytile+1][thisIce.tiles[4].xtile+1])then
+             
+            if thisIce.ontile == "leftTread" then
+               X = -1 
+               okMove = true
+               thisIce.ontile = "slimeLeft"
+           end
+           if thisIce.ontile == "slimeLeft" then
+               X = -1 
+               okMove = true
+               thisIce.ontile = "slimeLeft"
+            end
+            
+            if thisIce.ontile == "rightTread" then
+               X = 1 
+               okMove = true
+               thisIce.ontile = "slimeRight"
+           end
+           if thisIce.ontile == "slimeRight" then
+               X = 1 
+               okMove = true
+               thisIce.ontile = "slimeRight"
+            end
+            
+            
+        end
+    
+    
+        
     if not okMove then
         if isWalkable(MAP.map[thisIce.tiles[3].ytile+1][thisIce.tiles[3].xtile+1])then
             if isWalkable(MAP.map[thisIce.tiles[4].ytile+1][thisIce.tiles[4].xtile+1])then
@@ -353,10 +403,27 @@ function moveIceBlock(X,HERO,MAP)
                 okMove = true
             end
         end
+                thisIce.ontile = "none"
     end
     
       local transTime = 300   
     if okMove and not thisIce.moving then
+        local heroFunc = require "hero"
+        heroFunc.checkCorners(HERO,MAP)
+       if X < 0 then
+           if thisIce.ontile == "slimeLeft" then
+        --print('on tile',thisIce.ontile, X)
+                if (isIceBlock(HERO.right+1, HERO.sideTopY ,HERO) or
+                isIceBlock(HERO.right+1, HERO.sideTopY+1 ,HERO))then
+                thisIce.ontile = "none"
+                X = 0
+                end
+               
+            end
+        end
+    
+        
+        
        -- print('X',X,"Y",Y)
         for j=1 , #HERO.iceBlock.tiles do
             thisIce.tiles[j].xtile = thisIce.tiles[j].xtile + X
