@@ -28,10 +28,11 @@ local map
 local uiClip = display.newGroup()
 local myText = display.newText("   ", display.contentCenterX, 0, native.systemFont, 16 )
 myText:setTextColor(255, 255, 255)
-local playerColor = 3
+local playerColor = math.random(3)
 local uiDots = {}
 local mapFunc = require("mapFunc")
 local isWalkable = mapFunc.isWalkable 
+local isIceBlock = mapFunc.checkIceBlock
 local isSlime = mapFunc.isSlime 
 local isTreadLeft = mapFunc.isTreadLeft
 local isTreadRight = mapFunc.isTreadRight 
@@ -94,6 +95,19 @@ function scene:createScene( event )
         uiClip:insert(dotA2)
         ui.createButtons(uiClip,{playerColor})
         group:insert( uiClip )
+        if playerColor == 1 then
+            colorVar = "red"
+        elseif playerColor == 2 then
+            colorVar = "blue"
+        elseif playerColor == 3 then
+            colorVar = "yellow"
+        end
+        
+        local clipString = colorVar..'Idle'
+        if clipString ~= hero.curAnim then
+            hero.clip:play(clipString)
+            hero.curAnim = clipString
+        end
 end
 
 
@@ -101,7 +115,10 @@ function setMapPosition()
     local mapOffset = 0
     hero.group.x = (math.round(hero.xpos/pixelSize)*pixelSize) 
     hero.group.y = (math.round(hero.ypos/pixelSize)*pixelSize)
-    
+    hero.xtile = math.floor(hero.xpos / mapVar.tilewidth)
+    hero.ytile = math.floor((hero.ypos-5) / mapVar.tileheight)
+    hero.xoff = hero.xpos - (math.floor(hero.xpos / mapVar.tilewidth)*mapVar.tilewidth)
+    hero.yoff = hero.ypos - (math.floor(hero.ypos / mapVar.tileheight)*mapVar.tileheight)
     if not game.paused then
     
         game.xpos = (math.round(hero.xpos/pixelSize)*pixelSize)
@@ -151,7 +168,7 @@ function setMapPosition()
     mapVar.clipFor.y = mapVar.clipBack.y
     
     mapFunc.cleanUpTiles(hero, game)
-    mapFunc.moveBullets(mapVar,game)
+    mapFunc.moveBullets(mapVar,game,hero)
 end
 
 
@@ -162,7 +179,8 @@ end
 local function enterFrameFunc(event)
     if not game.paused then
         local active = ui.getActive()
-        local colorVar = "blue"
+        local colorVar = "blue" 
+        
         myText.text = active.playerColor
         
         if active.playerColor == 1 then
@@ -248,10 +266,27 @@ local function enterFrameFunc(event)
                 end
             end
             
+            if active.playerColor == 2 then
+                if active.action1Tap and not (hero.jumping or hero.falling or hero.ontreadmill)  then
+                    if not isIceBlock(hero.centerX, hero.under ,hero) then
+                        heroFunc.dropBlock(hero,mapVar)
+                        mapFunc.moveIceBlock(0,hero,mapVar)
+                    end
+                    active.action1Tap = false
+                end
+            end
+            
             if active.playerColor == 3 then
                 if active.action1Tap and not (hero.jumping or hero.falling or hero.ontreadmill) then
-                    heroFunc.dropPortal(hero,mapVar,game)
                     active.action1Tap = false
+                    if not isIceBlock(hero.centerX, hero.under ,hero) then
+                        heroFunc.dropPortal(hero,mapVar,game)
+                        
+                        return
+                        end
+                        
+                   
+                
                 end
             end
         
@@ -276,7 +311,24 @@ local function enterFrameFunc(event)
         
         
     else -- end game paused
-    setMapPosition()    
+    setMapPosition() 
+    if hero.porting then
+        if not hero.checkedPortal then
+        heroFunc.checkCorners(hero,mapVar)
+        local x1 = hero.portals[1].xtile
+        local x2 = hero.portals[2].xtile
+        local y1 = hero.portals[1].ytile
+        local y2 = hero.portals[2].ytile
+        if isIceBlock(x1, y1 ,hero) or
+            isIceBlock(x2, y2 ,hero) or
+            isIceBlock(hero.centerX, hero.bottom ,hero) then
+            heroFunc.breakIceBlock(hero)
+        end
+           hero.checkedPortal = true 
+       end
+       
+    end
+    
     end
     
         
@@ -290,8 +342,8 @@ function moveHero(XDIR, YDIR)
     
   heroFunc.checkCorners(hero,mapVar)
   
-    -- TL  TR  BL  BR  TC  BC  UBC
-    if hero.yspeed >= 0 or not isWalkable(hero.TC) then
+    -- TL  TR  BL  BR  TC  BC  UBC  or not isIceBlock(hero.centerX, hero.top ,hero)
+    if hero.yspeed >= 0 or not isWalkable(hero.TC)  then
         hero.jumping = false
         if not isWalkable(hero.TC) then
             --hero.ypos = hero.ypos + hero.yspeed
@@ -299,36 +351,45 @@ function moveHero(XDIR, YDIR)
         end
     end
     
-    if isWalkable(hero.UBC)  then
-      if not hero.falling and not hero.jumping then
-          hero.quickfall = true
-      end
-      
-      hero.falling = true
-    else 
-      hero.falling = false
-      hero.dblJumped = false
-      
-    end
+        if isWalkable(hero.UBC) and not isIceBlock(hero.centerX, hero.under ,hero)  then
+            if not hero.falling and not hero.jumping then
+                hero.quickfall = true
+            end
+
+            hero.falling = true
+        else 
+            if hero.falling then
+                -- print('ytile: ',hero.ytile)
+            end
+
+            hero.falling = false
+            hero.dblJumped = false
+
+        end
     
-    if hero.falling then
-        hero.yspeed = hero.yspeed + mapVar.gravity
-        if hero.quickfall then
-          hero.yspeed = hero.yspeed + (mapVar.gravity *8 )
-          hero.quickfall = false
-        end
-        
-    else
-        if math.floor((hero.ypos + hero.yspeed)/mapVar.tileheight) ~= math.floor((hero.ypos)/mapVar.tileheight) then
-        hero.ypos = math.floor((hero.ypos + hero.yspeed)/mapVar.tileheight)*mapVar.tileheight
-        end
-        while not isWalkable(hero.BC) do
+        if hero.falling then
+            hero.yspeed = hero.yspeed + mapVar.gravity
+            if hero.quickfall then
+            hero.yspeed = hero.yspeed + (mapVar.gravity *8 )
+            hero.quickfall = false
+            end
+
+        else
+            if math.floor((hero.ypos + hero.yspeed)/mapVar.tileheight) ~= math.floor((hero.ypos)/mapVar.tileheight) then
+            hero.ypos = math.floor((hero.ypos + hero.yspeed)/mapVar.tileheight)*mapVar.tileheight
+            end
+        local loopCount = 0
+        while not isWalkable(hero.BC) or isIceBlock(hero.centerX, hero.bottom ,hero) do
         hero.ypos = hero.ypos -1 
         heroFunc.checkCorners(hero,mapVar)
+        if loopCount > 6 then
+            break
+        end
+        
         end
         hero.quickfall = false
         hero.yspeed = 0
-    end
+        end
     
     if hero.yspeed > hero.maxyspeed then
         hero.yspeed = hero.maxyspeed
@@ -358,15 +419,46 @@ function moveHero(XDIR, YDIR)
     
     
     if hero.walking then
-        if hero.dirx == -1 and not(isWalkable(hero.TL) and isWalkable(hero.BL)) then
-            hero.walking = false
+        if hero.dirx == -1 then
+            if not(isWalkable(hero.TL) and isWalkable(hero.BL)) then
+                hero.walking = false
+                hero.xspeed = 0
+            else
+               if (isIceBlock(hero.left, hero.sideTopY ,hero) or
+                isIceBlock(hero.left, hero.sideTopY+1 ,hero))and
+                not hero.falling and
+                not hero.jumping then
+                    mapFunc.moveIceBlock(-1,hero,mapVar)
+                hero.walking = false
+                hero.xspeed = 0
+                end
+            end
+        end
+        
+        if hero.dirx == 1  then
+            if not(isWalkable(hero.TR) and isWalkable(hero.BR)) then
+                    hero.walking = false 
+                    hero.xspeed = 0
+            else
+                
+                if (isIceBlock(hero.right, hero.sideTopY ,hero) or
+                isIceBlock(hero.right, hero.sideTopY+1 ,hero))and
+                not hero.falling and
+                not hero.jumping then
+                    mapFunc.moveIceBlock(1,hero,mapVar)
+                    hero.walking = false 
+                    hero.xspeed = 0
+                end
+            end
+        
             
-            hero.xspeed = 0
         end
-        if hero.dirx == 1  and not(isWalkable(hero.TR) and isWalkable(hero.BR))  then
-            hero.walking = false 
-            hero.xspeed = 0
-        end
+        
+       
+           
+           
+       
+       
     end
     
         
@@ -393,23 +485,27 @@ function moveHero(XDIR, YDIR)
  local pushedR = false
  local pushedL = false
  local loopCount = 0
-        while not isWalkable(hero.TL) or not isWalkable(hero.BL) do
+        while not isWalkable(hero.TL) or not isWalkable(hero.BL) or
+                isIceBlock(hero.left, hero.sideTopY ,hero) or
+                isIceBlock(hero.left, hero.sideTopY+1 ,hero) do
             hero.xpos = hero.xpos + 1 
             heroFunc.checkCorners(hero,mapVar)
             pushedR = true
             loopCount = loopCount + 1
-            if loopCount > 5 then
+            if loopCount > 7 then
                 loopCount = 0
                 break
             end
             
         end
-        while not isWalkable(hero.TR) or not isWalkable(hero.BR) do
+        while not isWalkable(hero.TR) or not isWalkable(hero.BR) or
+                isIceBlock(hero.right, hero.sideTopY ,hero) or
+                isIceBlock(hero.right, hero.sideTopY+1 ,hero)do
             hero.xpos = hero.xpos - 1 
             heroFunc.checkCorners(hero,mapVar)
             pushedL = true
             loopCount = loopCount + 1
-            if loopCount > 5 then
+            if loopCount > 7 then
                 loopCount = 0
                 break
             end

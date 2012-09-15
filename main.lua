@@ -4,7 +4,7 @@ io.output():setvbuf('no')
 system.activate("multitouch")
 display.setStatusBar(display.HiddenStatusBar)
 display.setDefault( "background", 100, 100, 100 )
-require("loq_profiler").createProfiler()
+--require("loq_profiler").createProfiler()
 -- require controller module
 local storyboard = require "storyboard"
 local widget = require "widget"
